@@ -1,6 +1,7 @@
 import { Background } from './components/Background/Background';
 import { BackgroundMobile } from './components/Background/BackgroundMobile';
 import { CompanyName } from './components/CompanyName/CompanyName';
+import { CompanyNameMobile } from './components/CompanyName/CompanyNameMobile';
 import './styles/main.css';
 
 class App {
@@ -17,11 +18,16 @@ class App {
       throw new Error('App container not found');
     }
 
-    // Initialize CompanyName component first
-    this.companyName = new CompanyName(appContainer);
+    // Detect if mobile device
+    const useMobile = this.detectMobile();
+    console.log('Device mode:', useMobile ? 'mobile' : 'desktop');
+
+    // Initialize CompanyName component first - use mobile version if on mobile device
+    this.companyName = useMobile
+      ? new CompanyNameMobile(appContainer)
+      : new CompanyName(appContainer);
 
     // Initialize Three.js background component with callback
-    const useMobile = this.detectMobile();
     this.background = (useMobile
       ? new BackgroundMobile(appContainer, () => {
         this.companyName.show();
@@ -29,7 +35,6 @@ class App {
       : new Background(appContainer, () => {
         this.companyName.show();
       })) as Background;
-    console.log('Background mode:', useMobile ? 'mobile' : 'desktop');
 
     // Add simple keyboard triggers:
     //  - 'w' => wrap back (from UNWRAPPED_IDLE)
