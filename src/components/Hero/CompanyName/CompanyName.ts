@@ -52,8 +52,8 @@ export class CompanyName {
         this.element = document.createElement('div');
         this.element.className = 'company-name';
         this.element.style.cssText = `
-      position: fixed;
-      top: 50%;
+            position: absolute;
+      top: var(--hero-center);
       left: 50%;
       transform: translate(-50%, -50%);
       font-family: 'Arial', sans-serif;
@@ -95,7 +95,7 @@ export class CompanyName {
                                 .company-subtitle {
                                     font-size: 1rem !important;
                                     letter-spacing: 0.25rem !important;
-                                    top: calc(50% + 84px) !important;
+                                    top: calc(var(--hero-center) + 84px) !important;
                                     max-width: 95vw !important;
                                     text-align: center !important;
                                 }
@@ -155,8 +155,8 @@ export class CompanyName {
         this.subtitleEl = document.createElement('div');
         this.subtitleEl.className = 'company-subtitle';
         this.subtitleEl.style.cssText = `
-          position: fixed;
-          top: calc(50% + 120px);
+            position: absolute;
+      top: calc(var(--hero-center) + 120px);
           left: 50%;
           transform: translateX(-50%);
           font-family: 'Arial', sans-serif;

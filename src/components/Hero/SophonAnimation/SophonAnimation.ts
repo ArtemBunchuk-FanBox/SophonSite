@@ -173,6 +173,9 @@ export class Background {
   private rotationX = 0;
   private rotationY = 0;
 
+  // Add reference to mission text element
+  private missionTextEl: HTMLElement | null = null;
+
   constructor(container: HTMLElement, onAnimationComplete?: () => void) {
     this.element = document.createElement('div');
     this.element.className = 'three-background';
@@ -185,6 +188,9 @@ export class Background {
     this.initThreeJS();
     this.setupEventListeners();
     this.startAnimation();
+
+    // Initialize mission text reference
+    this.missionTextEl = document.querySelector('.mission-text');
   }
 
   // Allow consumers to enable/disable the reverse part of the sequence
@@ -200,7 +206,7 @@ export class Background {
   }
 
   private setupContainer(): void {
-    this.element.style.position = 'fixed';
+    this.element.style.position = 'absolute';
     this.element.style.top = '0';
     this.element.style.left = '0';
     this.element.style.width = '100%';
@@ -220,7 +226,11 @@ export class Background {
     // Ensure renderer respects renderOrder for transparent objects
     this.renderer.sortObjects = true;
 
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    // Size will be matched to parent hero section via observer/resize
+    const parent = this.element.parentElement as HTMLElement | null;
+    const w = parent?.clientWidth || window.innerWidth;
+    const h = parent?.clientHeight || window.innerHeight;
+    this.renderer.setSize(w, h);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.element.appendChild(this.renderer.domElement);
@@ -287,9 +297,12 @@ export class Background {
     };
 
     const handleResize = () => {
-      this.camera.aspect = window.innerWidth / window.innerHeight;
+      const parent = this.element.parentElement as HTMLElement | null;
+      const w = parent?.clientWidth || window.innerWidth;
+      const h = parent?.clientHeight || window.innerHeight;
+      this.camera.aspect = w / h;
       this.camera.updateProjectionMatrix();
-      this.renderer.setSize(window.innerWidth, window.innerHeight);
+      this.renderer.setSize(w, h);
     };
 
     this.element.addEventListener('mousedown', handleMouseDown);
@@ -1033,6 +1046,12 @@ export class Background {
               this.pendingBallSpawn = false;
             }
           }
+
+          // Update mission text opacity to fade in simultaneously with edges
+          if (this.missionTextEl) {
+            this.missionTextEl.style.opacity = this.unwrappingT.toString();
+          }
+
           break;
         }
 
@@ -1140,9 +1159,10 @@ export class Background {
   private createStageTextElement(): void {
     if (this.stageTextEl) return;
     const el = document.createElement('div');
+    el.className = 'stage-text';
     el.style.cssText = `
-      position: fixed;
-      top: 50%;
+      position: absolute;
+      top: var(--hero-center);
       left: 50%;
       transform: translate(-50%, -50%);
       font-family: 'Arial', sans-serif;
@@ -1151,7 +1171,7 @@ export class Background {
       letter-spacing: 0.5rem;
       text-align: center;
       line-height: 1.15;
-      z-index: 900;
+      z-index: 950;
       opacity: 1;
       pointer-events: none;
       text-shadow:
@@ -1168,7 +1188,9 @@ export class Background {
       white-space: nowrap;
       display: none;
     `;
-    document.body.appendChild(el);
+    // Append inside the hero container (parent of the three-background)
+    const host = this.element.parentElement || document.body;
+    host.appendChild(el);
     this.stageTextEl = el;
   }
 

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Background } from './Background';
+import { Background } from './SophonAnimation';
 import { createGoreGeometry, lerp, easeInOutCubic } from './core/geometry';
 
 export class BackgroundMobile extends Background {

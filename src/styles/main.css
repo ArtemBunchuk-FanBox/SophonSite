@@ -4,9 +4,33 @@
   box-sizing: border-box;
 }
 
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  /* prevent side-to-side scrolling */
+  -ms-overflow-style: none;
+  /* IE/Edge */
+  scrollbar-width: none;
+  /* Firefox */
+}
+
+:root {
+  --hero-visible-height: 70vh;
+  --hero-center: calc(var(--hero-visible-height) / 2);
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
 body {
   font-family: 'Arial', sans-serif;
   overflow: hidden;
+  /* lock scrolling until animation finishes */
   background: #000;
   /* Fallback background */
 }
@@ -14,12 +38,41 @@ body {
 #app {
   position: relative;
   min-height: 100vh;
-  width: 100vw;
+  width: 100%;
+  /* avoid 100vw to prevent horizontal scroll when scrollbar appears */
 }
 
-/* Three.js background container */
+/* Hero section */
+.hero {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  /* keep animation full height */
+  /* Visual section height and center */
+  --hero-visible-height: 70vh;
+  --hero-center: calc(var(--hero-visible-height) / 1.6);
+}
+
+/* Raised border line inside the hero (visual divider at 70vh) */
+.hero::after {
+  content: "";
+  position: absolute;
+  top: var(--hero-visible-height);
+  /* move this to raise/lower the visual border */
+  left: 0;
+  right: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  pointer-events: none;
+}
+
+/* Shift the render layer so its center aligns with hero-visible center (not full viewport center) */
+.hero .three-background {
+  transform: translateY(calc(var(--hero-center, 50vh) - 50vh));
+}
+
+/* Three.js background container (now scoped to hero) */
 .three-background {
-  position: fixed !important;
+  position: absolute !important;
   top: 0 !important;
   left: 0 !important;
   width: 100% !important;
@@ -32,6 +85,66 @@ body {
   display: block;
   width: 100% !important;
   height: 100% !important;
+}
+
+/* Mission section below hero */
+.mission {
+  position: relative;
+  width: 100%;
+  background: transparent;
+  padding: 0 0 25px;
+  /* no visual gap below */
+  margin-top: calc(-30vh);
+  /* pull up to meet the hero divider at 70vh */
+  z-index: 1;
+  /* sit above three-background */
+  /* shorter section */
+}
+
+.mission-section {
+  display: block;
+  padding: 0;
+}
+
+.mission-card {
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.mission-text {
+  color: #ffffff;
+  font-size: clamp(2rem, 5vw, 4.5rem);
+  /* Reduced sizes for compactness */
+  font-weight: 300;
+  line-height: 1.05;
+  /* Tighter line height for compactness */
+  letter-spacing: clamp(0.1rem, 0.4vw, 0.5rem);
+  /* Reduced for better fit */
+  text-align: center;
+  padding: 15px 3vw 0;
+  /* Reduced top padding for lower height */
+  will-change: transform, opacity;
+  opacity: 1;
+  /* Ensure visible on load */
+  transform: none;
+  /* Remove any initial transform that might hide it */
+  /* Removed transition to allow JS-controlled fade-in */
+}
+
+.mission-text.delayed {
+  opacity: 0;
+  /* New flag class for delayed appearance (apply via JS after animation) */
+}
+
+.mission-text .highlight {
+  color: #6666FF;
+  /* Lighter blue shade */
+  text-shadow: 0 0 4px rgba(102, 102, 255, 0.8), 0 0 10px rgba(102, 102, 255, 0.5);
+  /* Updated to match lighter blue */
 }
 
 /* Content styling */
