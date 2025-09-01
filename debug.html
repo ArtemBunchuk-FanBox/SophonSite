@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug SophonSite</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #000;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+
+        #status {
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid #333;
+            background: #111;
+        }
+
+        #app {
+            position: relative;
+            min-height: 50vh;
+            width: 100%;
+            border: 1px solid #333;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="status">
+        <h2>Debug Status</h2>
+        <p>Page loaded: <span id="page-status">✓</span></p>
+        <p>Bundle.js loaded: <span id="bundle-status">⏳</span></p>
+        <p>App initialized: <span id="app-status">⏳</span></p>
+        <p>Three.js available: <span id="three-status">⏳</span></p>
+        <div id="errors"></div>
+    </div>
+
+    <div id="app"></div>
+
+    <script>
+        // Check if bundle.js exists and loads
+        const script = document.createElement('script');
+        script.src = './bundle.js';
+
+        script.onload = function () {
+            document.getElementById('bundle-status').textContent = '✓';
+            document.getElementById('bundle-status').style.color = 'green';
+        };
+
+        script.onerror = function () {
+            document.getElementById('bundle-status').textContent = '✗ Failed to load bundle.js';
+            document.getElementById('bundle-status').style.color = 'red';
+
+            // Try alternative paths
+            const altScript = document.createElement('script');
+            altScript.src = '/bundle.js';
+            altScript.onload = function () {
+                document.getElementById('bundle-status').textContent = '✓ (loaded from /bundle.js)';
+                document.getElementById('bundle-status').style.color = 'green';
+            };
+            altScript.onerror = function () {
+                document.getElementById('bundle-status').textContent = '✗ Failed to load from both ./bundle.js and /bundle.js';
+                document.getElementById('bundle-status').style.color = 'red';
+            };
+            document.head.appendChild(altScript);
+        };
+
+        document.head.appendChild(script);
+
+        // Global error tracking
+        window.addEventListener('error', function (e) {
+            const errorDiv = document.getElementById('errors');
+            errorDiv.innerHTML += `<p style="color: red;">Error: ${e.message} at ${e.filename}:${e.lineno}</p>`;
+        });
+
+        // Check when DOM is ready
+        document.addEventListener('DOMContentLoaded', function () {
+            // Wait a bit for app to initialize
+            setTimeout(() => {
+                const appElement = document.getElementById('app');
+                if (appElement && appElement.children.length > 0) {
+                    document.getElementById('app-status').textContent = '✓';
+                    document.getElementById('app-status').style.color = 'green';
+                } else {
+                    document.getElementById('app-status').textContent = '✗ App container is empty';
+                    document.getElementById('app-status').style.color = 'red';
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+
+</html>
