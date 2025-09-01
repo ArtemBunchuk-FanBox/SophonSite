@@ -7,7 +7,6 @@ module.exports = {
     filename: 'bundle.js',
     path: path.resolve(__dirname, 'dist'),
     clean: true,
-    publicPath: './',
   },
   resolve: {
     extensions: ['.ts', '.js'],
@@ -34,6 +33,9 @@ module.exports = {
     static: './dist',
     hot: true,
     open: true,
+    port: 8082,
+    watchFiles: ['src/**/*'],
+    liveReload: true,
   },
   mode: 'development',
 };

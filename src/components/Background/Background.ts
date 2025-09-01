@@ -110,7 +110,8 @@ export class Background {
   private animationStep = 'INITIAL_CIRCLES_MOVE';
   private stepProgress = 0;
   private stepDurations = {
-    INITIAL_CIRCLES_MOVE: 4.0,
+    // Increased so circle-to-bottom alignment is slower and more methodical
+    INITIAL_CIRCLES_MOVE: 6.5,
     FORMING_GORES: 2.0,
     UNWRAPPING: 8.0,
     WRAPPING: 8.0,
@@ -453,7 +454,10 @@ export class Background {
                 transparent: true,
                 opacity: wireframeOpacity,
                 wireframe: true,
-                side: THREE.DoubleSide
+                side: THREE.DoubleSide,
+                // keep colors intact (avoid whitening) but avoid depth-write so overlapping edges don't occlude
+                blending: THREE.NormalBlending,
+                depthWrite: false,
               });
               const wf = new THREE.Mesh(goreGeometry.clone(), wm);
               gore.add(wf);
@@ -465,7 +469,10 @@ export class Background {
               transparent: true,
               opacity: 0.6,
               wireframe: true,
-              side: THREE.DoubleSide
+              side: THREE.DoubleSide,
+              // Use normal blending so wireframe color is preserved (prevent bright white wash)
+              blending: THREE.NormalBlending,
+              depthWrite: false,
             });
             gore = new THREE.Mesh(goreGeometry, goreMaterial);
 
@@ -490,7 +497,11 @@ export class Background {
               transparent: true,
               opacity: 0.18,
               wireframe: false,
-              side: THREE.DoubleSide
+              side: THREE.DoubleSide,
+              // Use normal blending to preserve per-gore color while preventing depth-write occlusion.
+              // Glow/edges remain additive for the highlight effect.
+              blending: THREE.NormalBlending,
+              depthWrite: false,
             });
             gore = new THREE.Mesh(goreGeometry, goreMaterial);
 
@@ -623,6 +634,9 @@ export class Background {
                 opacity: wireframeOpacity,
                 wireframe: true,
                 side: THREE.DoubleSide
+                // keep color fidelity here as well
+                , blending: THREE.NormalBlending
+                , depthWrite: false
               });
               const wf = new THREE.Mesh((gore.geometry as THREE.BufferGeometry).clone(), wm);
               gore.add(wf);
@@ -634,7 +648,11 @@ export class Background {
               transparent: true,
               opacity: 0.6,
               wireframe: true,
-              side: THREE.DoubleSide
+              side: THREE.DoubleSide,
+              // Use normal blending to preserve per-gore color while preventing depth-write occlusion.
+              // Glow/edges remain additive for the highlight effect.
+              blending: THREE.NormalBlending,
+              depthWrite: false,
             });
             const wf = new THREE.Mesh((gore.geometry as THREE.BufferGeometry).clone(), wm);
             gore.add(wf);
@@ -673,6 +691,21 @@ export class Background {
               gore.add(edges);
             }
           }
+
+          // Ensure reused/replaced gore materials also use additive blending + no depthWrite
+          // to avoid folding artifacts when geometry overlaps.
+          try {
+            const mat = gore.material as any;
+            if (mat && !Array.isArray(mat)) {
+              if (mat.isMeshBasicMaterial || mat.constructor?.name === 'MeshBasicMaterial') {
+                // preserve the material's color (avoid whitening) while preventing depth-write occlusion
+                mat.blending = THREE.NormalBlending;
+                mat.depthWrite = false;
+              }
+            } else if (Array.isArray(mat)) {
+              mat.forEach((m: any) => { if (m) { m.blending = THREE.NormalBlending; m.depthWrite = false; } });
+            }
+          } catch (e) { /* non-critical */ }
 
           // apply transforms to reused gore
           const angleStep = lerp(Math.PI * 2 / this.currentNumGores, Math.PI * 2 / 3, this.transitionProgress);
@@ -779,38 +812,6 @@ export class Background {
       this.circleOutlines.push(parts.core);
       this.scene.add(parts.innerGlow, parts.outerGlow, parts.ultraGlow, parts.superGlow);
       this.circleOutlines.push(parts.innerGlow, parts.outerGlow, parts.ultraGlow, parts.superGlow);
-
-      // Add extra glow layers for enhanced effect (use parts.core.geometry directly, increased opacity)
-      const extraGlowPoints = parts.core.geometry.attributes.position;
-      if (extraGlowPoints) {
-        const positions = extraGlowPoints.array;
-        const extraPoints: THREE.Vector3[] = [];
-
-        // Create an even larger, more diffuse glow
-        for (let i = 0; i < positions.length; i += 3) {
-          const x = positions[i] * 1.4;
-          const y = positions[i + 1];
-          const z = positions[i + 2] * 1.4;
-          extraPoints.push(new THREE.Vector3(x, y, z));
-        }
-
-        const extraGlowGeom = new THREE.BufferGeometry().setFromPoints(extraPoints);
-        const extraGlowMat = new THREE.LineBasicMaterial({
-          color: 0x3366cc, // Deeper blue for outer rim
-          transparent: true,
-          opacity: 0.2 * this.circleDrawProgress, // Increased from 0.15
-          blending: THREE.AdditiveBlending,
-          depthTest: false,
-          depthWrite: false,
-        });
-        const extraGlow = new THREE.Line(extraGlowGeom, extraGlowMat);
-        extraGlow.position.copy(parts.core.position);
-        extraGlow.rotation.copy(parts.core.rotation);
-        extraGlow.renderOrder = 9994;
-
-        this.scene.add(extraGlow);
-        this.circleOutlines.push(extraGlow);
-      }
     }
   }
 
@@ -853,10 +854,11 @@ export class Background {
         case 'INITIAL_CIRCLES_MOVE': {
           // Hold eye, type "RESEARCH", hold, then morph while backspacing (all in seconds)
           const sp = this.stepProgress; // seconds into this step
-          const total = this.stepDurations.INITIAL_CIRCLES_MOVE; // 4.0s
+          const total = this.stepDurations.INITIAL_CIRCLES_MOVE; // now longer
           const typeSec = this.STAGE_TYPE_SEC;
           const holdSec = this.STAGE_HOLD_FIRST_SEC;
           const morphSec = 1.0; // keep morph speed
+          // movement window (now larger because total increased)
           const yMoveSec = Math.max(0, total - (typeSec + holdSec + morphSec));
 
           if (sp < typeSec) {
@@ -881,7 +883,9 @@ export class Background {
             this.eyeToCircleProgress = 1;
             this.clearStageText();
             const rem = sp - (typeSec + holdSec + morphSec);
+            // use eased progress so movement is smooth and methodical
             const t3 = yMoveSec > 0 ? THREE.MathUtils.clamp(rem / yMoveSec, 0, 1) : 1;
+            const tE = easeInOutCubic(t3);
 
             const rLarge = this.sphereConfigs[0].radius;
             const rMed = this.sphereConfigs[1].radius;
@@ -892,13 +896,14 @@ export class Background {
             const mediumAlignsToLargeCenter = largeCenter + (rMed - rLarge);
             const smallAlignsToLargeCenter = largeCenter + (rSmall - rLarge);
 
-            if (t3 < 0.5) {
-              const a = t3 / 0.5;
+            // apply eased progress for both halves for a slower, more deliberate motion
+            if (tE < 0.5) {
+              const a = tE / 0.5;
               this.sphereYs[0] = largeCenter;
               this.sphereYs[1] = largeCenter;
               this.sphereYs[2] = lerp(largeCenter, smallAlignsToMediumCenter, a);
             } else {
-              const b = (t3 - 0.5) / 0.5;
+              const b = (tE - 0.5) / 0.5;
               this.sphereYs[0] = largeCenter;
               this.sphereYs[1] = lerp(largeCenter, mediumAlignsToLargeCenter, b);
               this.sphereYs[2] = lerp(smallAlignsToMediumCenter, smallAlignsToLargeCenter, b);
@@ -922,8 +927,8 @@ export class Background {
         }
 
         case 'FORMING_GORES': {
-          // Type and hold "EVOLVE" before gore drawing; then draw gores while backspacing
-          if (!this.fgTextInit) { this.stageText = 'EVOLVE'; this.fgTextInit = true; }
+          // Type and hold "DISCOVER" before gore drawing; then draw gores while backspacing
+          if (!this.fgTextInit) { this.stageText = 'DISCOVER'; this.fgTextInit = true; }
           const sp = this.stepProgress;                // seconds
           const typeSec = this.STAGE_TYPE_SEC;
           const holdSec = this.STAGE_HOLD_SECOND_SEC;
@@ -984,7 +989,7 @@ export class Background {
         }
 
         case 'UNWRAPPING': {
-          if (!this.unwrTextInit) { this.stageText = 'UNFOLD'; this.unwrTextInit = true; }
+          if (!this.unwrTextInit) { this.stageText = 'TRANSFORM'; this.unwrTextInit = true; }
           // Keep geometry unwrapping on original 8s timeline
           this.unwrappingT = Math.min(1, this.stepProgress / this.stepDurations.UNWRAPPING);
           if (this.wireframeMode !== 'wireframe') {
@@ -1011,13 +1016,12 @@ export class Background {
 
           this.updatePositions(this.unwrappingT);
           if (this.unwrappingT >= 1) {
-            // lock into fully unwrapped and stop auto-flow
+            // REMOVE ALL THE REBUILDING - just pause the animation state
             this.unwrappingT = 1;
-            this.goreDrawProgress = 1;
-            this.circleDrawProgress = 0;
-            this.wireframeTransitioning = false;
-            this.wireframeMode = 'wireframe';
-            // Remove redundant updateGores and updatePositions calls here
+            // Don't change goreDrawProgress or circleDrawProgress
+            // Don't force wireframe mode changes
+            // Don't call updateGores() or updatePositions() again
+
             if (this.onAnimationComplete) {
               console.log('Unwrap finished, showing company name');
               this.onAnimationComplete();
@@ -1033,16 +1037,16 @@ export class Background {
         }
 
         case 'UNWRAPPED_IDLE':
-          // Hold indefinitely until startWrap() is called
-          // Only update if values have changed to prevent unnecessary updates
-          if (this.unwrappingT !== 1 || this.goreDrawProgress !== 1 || this.circleDrawProgress !== 0) {
-            this.unwrappingT = 1;
-            this.goreDrawProgress = 1;
-            this.circleDrawProgress = 0;
-            this.wireframeTransitioning = false;
-            this.wireframeMode = 'wireframe';
-            this.updateGores(1);
-            this.updatePositions(1);
+          // Continue updating glow effects even while idle
+          if (this.glowOutlineActive) {
+            // Update glow pulse and reveal effects
+            this.updateGores(this.unwrappingT);
+
+            // Handle pending ball spawn after glow fully reveals
+            if (this.glowOutlineProgress >= 1 && this.pendingBallSpawn && !this.ballsSpawned) {
+              this.spawnDefaultBalls();
+              this.pendingBallSpawn = false;
+            }
           }
           break;
 
