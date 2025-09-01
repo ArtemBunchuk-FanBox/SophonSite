@@ -1,4 +1,5 @@
 import { Background } from './components/Background/Background';
+import { BackgroundMobile } from './components/Background/BackgroundMobile';
 import { CompanyName } from './components/CompanyName/CompanyName';
 import './styles/main.css';
 
@@ -20,15 +21,28 @@ class App {
     this.companyName = new CompanyName(appContainer);
 
     // Initialize Three.js background component with callback
-    this.background = new Background(appContainer, () => {
-      // Show company name when animation completes
-      this.companyName.show();
-    });
+    const useMobile = this.detectMobile();
+    this.background = (useMobile
+      ? new BackgroundMobile(appContainer, () => {
+        this.companyName.show();
+      })
+      : new Background(appContainer, () => {
+        this.companyName.show();
+      })) as Background;
+    console.log('Background mode:', useMobile ? 'mobile' : 'desktop');
 
     // Add simple keyboard triggers:
     //  - 'w' => wrap back (from UNWRAPPED_IDLE)
     //  - 'u' => unwrap again (from EYE_IDLE)
     document.addEventListener('keydown', this.onKeyDown);
+  }
+
+  private detectMobile(): boolean {
+    const isTouch = 'ontouchstart' in window || (navigator as any).maxTouchPoints > 0;
+    const smallScreen = Math.min(window.innerWidth, window.innerHeight) <= 768;
+    const ua = navigator.userAgent || (navigator as any).vendor || (window as any).opera || '';
+    const isUA = /android|iphone|ipad|ipod|mobile|silk|kindle|blackberry|bb|opera mini|windows phone/i.test(ua);
+    return (isTouch && smallScreen) || isUA;
   }
 
   private onKeyDown = (e: KeyboardEvent) => {

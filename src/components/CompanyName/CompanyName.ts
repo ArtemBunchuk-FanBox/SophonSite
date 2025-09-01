@@ -25,6 +25,9 @@ export class CompanyName {
     private subtitleState: 'idle' | 'typing' | 'backspacing' = 'idle';
     private onStageType?: (e: Event) => void;
     private onStageBackspace?: (e: Event) => void;
+    // Mobile font sizing events
+    private onMobileCompanyFontSize?: (e: Event) => void;
+    private onMobileTitleFontSize?: (e: Event) => void;
 
     private static readonly SHIMMER_INTERVAL_MS = 10000; // pulse every n seconds (default 10s)
     private static readonly SHIMMER_CYCLE_MS = 4000;      // bright pulse duration (9s)
@@ -78,6 +81,31 @@ export class CompanyName {
       -moz-user-select: none;
       -ms-user-select: none;
     `;
+
+        // Add responsive CSS via a one-time injected style tag
+        const styleId = 'company-name-responsive-style';
+        if (!document.getElementById(styleId)) {
+            const style = document.createElement('style');
+            style.id = styleId;
+            style.textContent = `
+                            @media (max-width: 768px) {
+                                .company-name {
+                                    font-size: 2.75rem !important;
+                                    letter-spacing: 0.35rem !important;
+                                    max-width: 95vw !important;
+                                    line-height: 1.1 !important;
+                                }
+                                .company-subtitle {
+                                    font-size: 1rem !important;
+                                    letter-spacing: 0.25rem !important;
+                                    top: calc(50% + 84px) !important;
+                                    max-width: 95vw !important;
+                                    text-align: center !important;
+                                }
+                            }
+                        `;
+            document.head.appendChild(style);
+        }
 
         // Build two-line structure
         this.line1Wrap = document.createElement('div');
@@ -162,6 +190,33 @@ export class CompanyName {
         this.onStageBackspace = () => this.backspaceSubtitle();
         window.addEventListener('stageTextType', this.onStageType as EventListener);
         window.addEventListener('stageTextBackspace', this.onStageBackspace as EventListener);
+
+        // Mobile: dynamic font sizing listeners
+        this.onMobileCompanyFontSize = (e: Event) => {
+            const detail = (e as CustomEvent).detail || {};
+            const px = Math.max(8, Number(detail.fontSizePx) || 0);
+            if (!this.element) return;
+            this.element.style.fontSize = `${px}px`;
+            // Keep proportional letter spacing: original 0.5rem at 4rem -> 0.125em
+            const lsPx = px * 0.125;
+            this.element.style.letterSpacing = `${lsPx}px`;
+            // Ensure width adapts on mobile
+            this.element.style.maxWidth = '95vw';
+            this.element.style.width = 'auto';
+        };
+        this.onMobileTitleFontSize = (e: Event) => {
+            const detail = (e as CustomEvent).detail || {};
+            const px = Math.max(8, Number(detail.fontSizePx) || 0);
+            if (!this.subtitleEl) return;
+            this.subtitleEl.style.fontSize = `${px}px`;
+            // Keep proportional letter spacing: original 0.35rem at 1.25rem -> 0.28em
+            const lsPx = px * 0.28;
+            this.subtitleEl.style.letterSpacing = `${lsPx}px`;
+            this.subtitleEl.style.maxWidth = '95vw';
+            this.subtitleEl.style.textAlign = 'center';
+        };
+        window.addEventListener('mobileCompanyFontSize', this.onMobileCompanyFontSize as EventListener);
+        window.addEventListener('mobileTitleFontSize', this.onMobileTitleFontSize as EventListener);
     }
 
     // Type subtitle with simple typewriter effect
@@ -422,6 +477,8 @@ export class CompanyName {
         }
         if (this.onStageType) window.removeEventListener('stageTextType', this.onStageType as EventListener);
         if (this.onStageBackspace) window.removeEventListener('stageTextBackspace', this.onStageBackspace as EventListener);
+        if (this.onMobileCompanyFontSize) window.removeEventListener('mobileCompanyFontSize', this.onMobileCompanyFontSize as EventListener);
+        if (this.onMobileTitleFontSize) window.removeEventListener('mobileTitleFontSize', this.onMobileTitleFontSize as EventListener);
         if (this.element) {
             this.element.remove();
             this.element = null;
